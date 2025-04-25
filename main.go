@@ -4,17 +4,14 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"os"
 
 	"github.com/fmarmol/jin"
+	"github.com/fmarmol/swagui/templates"
 	"github.com/spf13/cobra"
 )
-
-//go:embed templates/index.template
-var indexTmpl string
 
 var cmd = &cobra.Command{
 	Use: "",
@@ -30,6 +27,7 @@ var cmd = &cobra.Command{
 			return errors.New("missing file argument")
 		}
 		port := cmd.Flag("port").Value.String()
+		token := cmd.Flag("token").Value.String()
 		filename := args[0]
 		docFd, err := os.Open(filename)
 		if err != nil {
@@ -37,12 +35,6 @@ var cmd = &cobra.Command{
 		}
 
 		docBytes, err := io.ReadAll(docFd)
-		if err != nil {
-			return err
-		}
-
-		t := template.New("index")
-		t, err = t.Parse(indexTmpl)
 		if err != nil {
 			return err
 		}
@@ -55,11 +47,7 @@ var cmd = &cobra.Command{
 
 		})
 		app.GET("/", func(c jin.Context) (any, error) {
-			err := t.Execute(c.Writer, map[string]any{"URL": "/docs"})
-			if err != nil {
-				return nil, err
-			}
-			return nil, nil
+			return c.Templ(templates.Index("/docs", token))
 		})
 		log.Println("http://localhost:" + port)
 		return app.Run(":" + port)
@@ -68,6 +56,7 @@ var cmd = &cobra.Command{
 
 func main() {
 	cmd.Flags().StringP("port", "p", "4242", "port")
+	cmd.Flags().StringP("token", "t", "", "jwt token")
 	err := cmd.Execute()
 	if err != nil {
 		fmt.Println("error:", err)
